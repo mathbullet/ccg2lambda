@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import cgi
+from html import escape as _html_escape
 import re
 
 from ccg2lambda_tools import build_ccg_tree
@@ -37,7 +37,7 @@ def get_fraction_mathml(numerator, denominator, line_thickness = 1,
                + "  <mrow>" + denominator + "</mrow>\n" \
                + "</mfrac>\n"
     if rule:
-        mathml_str = "<mrow><mo>" + cgi.escape(rule) + "</mo>" + mathml_str + "</mrow>"
+        mathml_str = "<mrow><mo>" + _html_escape(rule) + "</mo>" + mathml_str + "</mrow>"
     return mathml_str
 
 def get_category_mathml(category):

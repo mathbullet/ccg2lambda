@@ -334,12 +334,18 @@ def run_coq_script(coq_script, timeout=100):
 def negate_conclusion(conclusion):
     return - conclusion
 
-# Check whether the string "is defined" appears in the output of coq.
-# In that case, we return True. Otherwise, we return False.
+# Check whether the theorem was successfully proved by Coq.
+# For Coq 8.4: look for "is defined" in the output.
+# For Coq 8.11+: "is defined" is no longer printed after Qed,
+# so we check for "No more subgoals" without any "Error".
 def is_theorem_defined(output_lines):
     for output_line in output_lines:
         if len(output_line) > 2 and 'is defined' in output_line:
             return True
+    has_no_more_subgoals = any('No more subgoals' in ol for ol in output_lines)
+    has_error = any('Error' in ol for ol in output_lines)
+    if has_no_more_subgoals and not has_error:
+        return True
     return False
 
 def is_theorem_error(output_lines):

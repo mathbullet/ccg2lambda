@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import cgi
+from html import escape as _html_escape
 import re
 
 from ccg2lambda_tools import build_ccg_tree
@@ -19,7 +19,7 @@ def get_fraction_latex(numerator, denominator, rule = '', upwards = kUpwardsTree
                + "{" + denominator + "}"
     if rule:
         numerator, denominator = denominator, numerator
-    label = cgi.escape(rule)
+    label = _html_escape(rule)
     normalized = label.replace('&lt;B1','\\FC') \
                       .replace('&gt;B1','\\BC') \
                       .replace('&lt;','\\FA') \

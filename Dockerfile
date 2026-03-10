@@ -1,93 +1,70 @@
-FROM openjdk:8-jdk-stretch AS build-env
+FROM ubuntu:20.04
 
-RUN apt-get update && \
-    apt-get install -y ant
-
-WORKDIR /build
-RUN git clone https://github.com/uwnlp/EasySRL && \
-    cd EasySRL && \
-    ant
-
-WORKDIR /build
-RUN git clone https://github.com/mikelewis0/easyccg
-
-ADD https://github.com/mynlp/jigg/archive/v-0.4.tar.gz /build/v-0.4.tar.gz
-RUN tar xzf v-0.4.tar.gz
-
-
-
-FROM python:3.6.3-jessie
-
-MAINTAINER Masashi Yoshikawa <yoshikawa.masashi.yh8@is.naist.jp>
-
+ENV DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-# Install ccg2lambda specific dependencies
-RUN sed -i -s '/debian jessie-updates main/d' /etc/apt/sources.list && \
-    echo "deb http://archive.debian.org/debian jessie-backports main" >> /etc/apt/sources.list && \
-    echo "Acquire::Check-Valid-Until false;" >/etc/apt/apt.conf.d/10-nocheckvalid && \
-    echo 'Package: *\nPin: origin "archive.debian.org"\nPin-Priority: 500' >/etc/apt/preferences.d/10-archive-pi && \
-    apt-get update && \
-    apt-get install -y openjdk-8-jre && \
-    apt-get update --fix-missing && \
+RUN apt-get update && \
     apt-get install -y \
+        build-essential \
         bc \
-        coq=8.4pl4dfsg-1 \
+        coq \
         libxml2-dev \
-        libxslt1-dev && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install -U pip && \
-    pip install lxml simplejson pyyaml -I nltk==3.0.5 cython numpy chainer==4.0.0 && \
-    python -c "import nltk; nltk.download('wordnet')"
+        libxslt1-dev \
+        libhdf5-dev \
+        pkg-config \
+        python3 \
+        python3-pip \
+        python3-dev \
+        python-is-python3 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
+# Build C&C Parser
+COPY third-party/candc/candc-1.00.tgz /tmp/
+COPY third-party/candc/models-1.02.tgz /tmp/
+WORKDIR /opt
+RUN tar -xzf /tmp/candc-1.00.tgz && \
+    tar -xzf /tmp/models-1.02.tgz && \
+    mv models candc-1.00/
+WORKDIR /opt/candc-1.00
+RUN sed -i 's|CXXFLAGS = \$(CFLAGS)|CXXFLAGS = \$(CFLAGS) -std=c++98 -fpermissive|' Makefile.unix && \
+    find src/include -name "*.h" -exec sed -i '1i#include <cstring>' {} \; && \
+    find src/lib -name "*.cc" -exec grep -l "memset\|memmove\|strcpy\|strlen" {} \; | xargs -I {} sed -i '1i#include <cstring>' {} && \
+    sed -i 's|str == this->str|str == std::string(this->str.str())|' src/include/hashtable/word.h && \
+    make -f Makefile.unix && \
+    rm -f /tmp/*.tgz
+
+WORKDIR /opt
+
+# Install Python dependencies
+RUN pip3 install --upgrade pip "setuptools<=68.2.2" wheel
+RUN pip3 install --no-cache-dir "cython==0.29.30" "numpy==1.23.5" lxml pyyaml simplejson
+RUN pip3 install --no-cache-dir "cached-path==1.1.2"
+RUN pip3 install --no-cache-dir "h5py==3.7.0"
+RUN pip3 install --no-cache-dir "depccg==2.0.3.2"
+RUN pip3 uninstall -y importlib-metadata importlib_metadata || true \
+    && pip3 install --no-cache-dir importlib-metadata==4.13.0
+RUN pip3 install --no-cache-dir "nltk==3.0.5"
+RUN python -c "import nltk; nltk.download('wordnet')"
+
+# Install depccg models
+COPY third-party/depccg/tri_headfirst.tar.gz /tmp/
+RUN DEPCCG_PATH=$(python -c "import depccg; import os; print(os.path.dirname(depccg.__file__))") && \
+    mkdir -p $DEPCCG_PATH/models && \
+    tar -xzf /tmp/tri_headfirst.tar.gz -C $DEPCCG_PATH/models && \
+    rm -f /tmp/tri_headfirst.tar.gz
+
+# Copy application
 WORKDIR /app
-ADD . /app
+COPY . /app
 
-# Install C&C
-WORKDIR /app/parsers
-ADD http://www.cl.cam.ac.uk/~sc609/resources/candc-downloads/candc-linux-1.00.tgz /app/parsers/candc-linux-1.00.tgz
-RUN tar xvf candc-linux-1.00.tgz
-WORKDIR /app/parsers/candc-1.00
-ADD http://www.cl.cam.ac.uk/~sc609/resources/candc-downloads/models-1.02.tgz /app/parsers/candc-1.00/models-1.02.tgz
-RUN tar xvf models-1.02.tgz && \
-    echo "/app/parsers/candc-1.00" >> /app/en/candc_location.txt && \
-    echo "candc:/app/parsers/candc-1.00" >> /app/en/parser_location.txt
+# Configure parser locations
+RUN echo "/opt/candc-1.00" > en/candc_location.txt && \
+    echo "depccg:" > en/parser_location.txt
 
-# Install easyccg
-WORKDIR /app/parsers/easyccg
-COPY --from=build-env /build/easyccg/easyccg.jar /app/parsers/easyccg/easyccg.jar
-ADD https://drive.google.com/uc?export=download&id=0B7AY6PGZ8lc-dUN4SDcxWkczM2M /app/parsers/easyccg/model.tar.gz
-RUN tar xvf model.tar.gz && \
-    echo "easyccg:"`pwd` >> /app/en/parser_location.txt
-
-# Install EasySRL
-WORKDIR /app/parsers/EasySRL
-COPY --from=build-env /build/EasySRL/easysrl.jar /app/parsers/EasySRL/easysrl.jar
-# Download model file (the ugly script is due to downloading the large file from Google Drive)
-RUN wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet \
-    --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate \
-    'https://docs.google.com/uc?export=download&id=0B7AY6PGZ8lc-R1E3aTA5WG54bWM' -O- | \
-    sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=0B7AY6PGZ8lc-R1E3aTA5WG54bWM" -O model.tar.gz 2> /dev/null && \
-    rm -rf /tmp/cookies.txt && \
-    tar xvf model.tar.gz && \
-    echo "easysrl:/app/parsers/EasySRL/" >> /app/en/parser_location.txt
-
-# Install Jigg
-COPY --from=build-env /build/jigg-v-0.4/jar/jigg-0.4.jar /app/parsers/jigg-v-0.4/jar/jigg-0.4.jar
-ADD https://github.com/mynlp/jigg/releases/download/v-0.4/ccg-models-0.4.jar /app/parsers/jigg-v-0.4/jar/
-RUN echo "/app/parsers/jigg-v-0.4" > /app/ja/jigg_location.txt && \
-    echo "jigg:/app/parsers/jigg-v-0.4" >> /app/ja/parser_location_ja.txt
-
-# Install depccg
-RUN pip install depccg && \
-    python -m depccg en download && \
-    python -m depccg ja download && \
-    echo "depccg:" >> /app/en/parser_location.txt && \
-    echo "depccg:" >> /app/ja/parser_location_ja.txt
-
-WORKDIR /app
+# Compile Coq library and generate Coq 8.11-compatible tactics
 RUN cp ./en/coqlib_sick.v ./coqlib.v && coqc coqlib.v && \
-    cp ./en/tactics_coq_sick.txt ./tactics_coq.txt
-# CMD ["en/rte_en_mp_any.sh", "en/sample_en.txt", "en/semantic_templates_en_emnlp2015.yaml"]
+    echo 'nltac. Qed' > ./tactics_coq.txt
+
 CMD ["/bin/bash"]
