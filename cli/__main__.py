@@ -9,9 +9,7 @@ import argparse
 import glob
 import json
 import logging
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 from cli.pipeline import (
@@ -113,9 +111,9 @@ def main():
         log.info("[%s] start", fname)
         item = load_input(fpath)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            work_dir = Path(tmpdir)
-            prediction = process_one(item, args.parser, templates, project_root, candc_dir, work_dir)
+        work_dir = output_dir / fname
+        work_dir.mkdir(parents=True, exist_ok=True)
+        prediction = process_one(item, args.parser, templates, project_root, candc_dir, work_dir)
 
         result = {
             "premise": item["premise"],
@@ -125,7 +123,7 @@ def main():
         }
         results.append(result)
 
-        out_path = output_dir / f"{fname}.json"
+        out_path = work_dir / "result.json"
         with open(out_path, "w") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
