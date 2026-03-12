@@ -9,3 +9,5 @@ ja_*
 *.pyc
 coqlib.vo
 coqlib.glob
+results/
+data/
