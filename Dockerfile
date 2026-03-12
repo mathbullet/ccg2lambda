@@ -61,7 +61,7 @@ COPY . /app
 
 # Configure parser locations
 RUN echo "/opt/candc-1.00" > en/candc_location.txt && \
-    echo "depccg:" > en/parser_location.txt
+    printf "candc:/opt/candc-1.00\ndepccg:\n" > en/parser_location.txt
 
 # Compile Coq library and generate Coq 8.11-compatible tactics
 RUN cp ./en/coqlib_sick.v ./coqlib.v && coqc coqlib.v && \
