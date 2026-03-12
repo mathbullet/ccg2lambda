@@ -96,7 +96,11 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    input_files = sorted(glob.glob(args.input))
+    input_path = Path(args.input)
+    if input_path.is_dir():
+        input_files = sorted(str(p) for p in input_path.glob("*.json"))
+    else:
+        input_files = sorted(glob.glob(args.input))
     if not input_files:
         log.error("no input files matched: %s", args.input)
         sys.exit(1)
