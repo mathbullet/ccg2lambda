@@ -10,6 +10,7 @@ import glob
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from cli.pipeline import (
@@ -91,8 +92,9 @@ def main():
         log.error("templates not found: %s", templates)
         sys.exit(1)
 
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = Path(args.output_dir) / timestamp
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     input_path = Path(args.input)
     if input_path.is_dir():
@@ -103,7 +105,7 @@ def main():
         log.error("no input files matched: %s", args.input)
         sys.exit(1)
 
-    log.info("processing %d file(s) with %s parser", len(input_files), args.parser)
+    log.info("processing %d file(s) with %s parser -> %s", len(input_files), args.parser, run_dir)
 
     results = []
     for fpath in input_files:
@@ -111,7 +113,7 @@ def main():
         log.info("[%s] start", fname)
         item = load_input(fpath)
 
-        work_dir = output_dir / fname
+        work_dir = run_dir / fname
         work_dir.mkdir(parents=True, exist_ok=True)
         prediction = process_one(item, args.parser, templates, project_root, candc_dir, work_dir)
 
