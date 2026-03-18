@@ -369,7 +369,7 @@ def insert_axioms_in_coq_script(axioms, coq_script):
     for axiom in axioms:
         axiom_name = axiom.split()[1]
         coq_script_lines.insert(
-            theorem_line, 'Hint Resolve {0}.'.format(axiom_name))
+            theorem_line, 'Hint Resolve {0} : core.'.format(axiom_name))
         coq_script_lines.insert(theorem_line, axiom)
     new_coq_script = '\n'.join(coq_script_lines)
     return new_coq_script
