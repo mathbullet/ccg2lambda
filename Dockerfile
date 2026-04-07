@@ -46,7 +46,8 @@ RUN pip3 install --no-cache-dir "depccg==2.0.3.2"
 RUN pip3 uninstall -y importlib-metadata importlib_metadata || true \
     && pip3 install --no-cache-dir importlib-metadata==4.13.0
 RUN pip3 install --no-cache-dir "nltk==3.0.5"
-RUN python -c "import nltk; nltk.download('wordnet')"
+RUN python -c "import nltk; nltk.download('wordnet')" && \
+    python -c "import zipfile; zipfile.ZipFile('/root/nltk_data/corpora/wordnet.zip').extractall('/root/nltk_data/corpora/')"
 
 # Install depccg models
 COPY third-party/depccg/tri_headfirst.tar.gz /tmp/
