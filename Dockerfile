@@ -12,6 +12,7 @@ RUN apt-get update && \
         libxml2-dev \
         libxslt1-dev \
         libhdf5-dev \
+        openjdk-11-jdk \
         pkg-config \
         python3 \
         python3-pip \
@@ -60,9 +61,13 @@ RUN DEPCCG_PATH=$(python -c "import depccg; import os; print(os.path.dirname(dep
 WORKDIR /app
 COPY . /app
 
-# Configure parser locations
+# Install EasyCCG parser (sourced from third-party)
+RUN cp -r third-party/easyccg /opt/easyccg
+
+# Configure parser locations (sick.md style)
 RUN echo "/opt/candc-1.00" > en/candc_location.txt && \
-    printf "candc:/opt/candc-1.00\ndepccg:\n" > en/parser_location.txt
+    echo "/opt/easyccg" > en/easyccg_location.txt && \
+    printf "candc:/opt/candc-1.00\neasyccg:/opt/easyccg\ndepccg:\n" > en/parser_location.txt
 
 # Compile Coq library and generate Coq 8.11-compatible tactics
 RUN cp ./en/coqlib_sick.v ./coqlib.v && coqc coqlib.v && \
