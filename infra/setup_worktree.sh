@@ -7,7 +7,7 @@ set -eu
 
 usage() {
   cat <<'EOF'
-Usage: tools/setup_worktree.sh <worktree-path> [branch] [options]
+Usage: infra/setup_worktree.sh <worktree-path> [branch] [options]
 
 Run from the root of the main checkout.
 
