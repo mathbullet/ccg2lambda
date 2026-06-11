@@ -11,3 +11,10 @@ coqlib.vo
 coqlib.glob
 results/
 data/
+parsed/
+plain/
+*.zip
+
+# OS metadata
+.DS_Store
+Thumbs.db
