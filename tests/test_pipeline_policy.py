@@ -18,9 +18,10 @@ PROBLEM = {'id': 'p1', 'gold': 'yes',
            'premises': ['A man walks.'], 'hypothesis': 'A person walks.'}
 
 
-class ParserFallbackPolicyTestCase(unittest.TestCase):
-    """The de-facto rule of rte_en_mp.sh select_answer: C&C wins, EasyCCG is
-    consulted only when C&C yields unknown (or fails)."""
+class ParserAggregationPolicyTestCase(unittest.TestCase):
+    """Every parser runs on every problem; the aggregated answer follows the
+    de-facto rule of rte_en_mp.sh select_answer: the first parser in
+    preference order with a definite answer (yes/no) wins."""
 
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -41,11 +42,12 @@ class ParserFallbackPolicyTestCase(unittest.TestCase):
             result = pipeline.evaluate_problem(self.env, PROBLEM)
         return result, calls
 
-    def test_candc_definite_answer_skips_easyccg(self):
-        result, calls = self.run_with_branches({'candc': branch('yes')})
+    def test_all_parsers_run_and_candc_definite_answer_wins(self):
+        result, calls = self.run_with_branches(
+            {'candc': branch('yes'), 'easyccg': branch('no')})
         self.assertEqual(('yes', 'ok', 'candc'),
                          (result['prediction'], result['status'], result['parser']))
-        self.assertEqual(['candc'], calls)
+        self.assertEqual(['candc', 'easyccg'], calls)
 
     def test_candc_unknown_falls_back_to_easyccg(self):
         result, calls = self.run_with_branches(
@@ -80,6 +82,16 @@ class ParserFallbackPolicyTestCase(unittest.TestCase):
             {'candc': branch('unknown'), 'easyccg': branch('yes')})
         self.assertEqual('unknown', result['parsers']['candc']['prediction'])
         self.assertEqual('yes', result['parsers']['easyccg']['prediction'])
+
+    def test_three_parser_preference_order(self):
+        self.env.parsers = ('candc', 'easyccg', 'depccg')
+        result, calls = self.run_with_branches(
+            {'candc': branch('unknown'),
+             'easyccg': branch(None, status='parse_error', stage='ccg'),
+             'depccg': branch('yes')})
+        self.assertEqual(('yes', 'ok', 'depccg'),
+                         (result['prediction'], result['status'], result['parser']))
+        self.assertEqual(['candc', 'easyccg', 'depccg'], calls)
 
 
 if __name__ == '__main__':

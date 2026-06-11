@@ -90,8 +90,9 @@ def parse_args(argv=None):
                              ' (default: 3x --timeout)')
     parser.add_argument('--jobs', type=int, default=1,
                         help='number of problems evaluated in parallel')
-    parser.add_argument('--parsers', default='candc,easyccg',
-                        help='comma-separated parser preference order')
+    parser.add_argument('--parsers', default='candc,easyccg,depccg',
+                        help='comma-separated parser preference order;'
+                             ' every parser runs on every problem')
     parser.add_argument('--output-root', default='results/runs')
     args = parser.parse_args(argv)
     if args.ids and args.ids_file:
@@ -177,13 +178,20 @@ def main(argv=None):
         for future in concurrent.futures.as_completed(futures):
             future.result()
 
-    summary = scoring.score(results)
+    summary = scoring.score(results, parsers=env.parsers)
     summary['wall_clock_seconds'] = round(time.monotonic() - started, 1)
     with open(os.path.join(run_dir, 'score.json'), 'w') as fout:
         json.dump(summary, fout, indent=2)
     print('accuracy: {0:.4f} ({1}/{2}), error rate: {3:.4f}'.format(
         summary['accuracy'], summary['correct'], summary['total'],
         summary['error_rate']))
+    for name in env.parsers:
+        stats = summary['parser_accuracy'][name]
+        print('  {0}: {1:.4f} ({2}/{3})'.format(
+            name, stats['accuracy'], stats['correct'], summary['total']))
+    print('  oracle (any parser correct): {0:.4f} ({1}/{2})'.format(
+        summary['oracle']['accuracy'], summary['oracle']['correct'],
+        summary['total']))
     print('score: {0}'.format(os.path.join(run_dir, 'score.json')))
     return 0
 

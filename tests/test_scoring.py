@@ -50,5 +50,59 @@ class ScoreTestCase(unittest.TestCase):
         self.assertEqual(0.0, s['accuracy'])
 
 
+def result_with_parsers(gold, prediction, status, parsers):
+    return {'id': 'x', 'gold': gold, 'prediction': prediction,
+            'status': status, 'parsers': parsers}
+
+
+class ParserAndOracleAccuracyTestCase(unittest.TestCase):
+    def test_parser_accuracy_counts_each_parser_independently(self):
+        results = [
+            result_with_parsers('yes', 'yes', 'ok', {
+                'candc': {'prediction': 'yes', 'status': 'ok'},
+                'easyccg': {'prediction': 'unknown', 'status': 'ok'},
+            }),
+            result_with_parsers('no', 'unknown', 'ok', {
+                'candc': {'prediction': 'unknown', 'status': 'ok'},
+                'easyccg': {'prediction': 'no', 'status': 'ok'},
+            }),
+        ]
+        s = scoring.score(results, parsers=('candc', 'easyccg'))
+        self.assertEqual(0.5, s['parser_accuracy']['candc']['accuracy'])
+        self.assertEqual(0.5, s['parser_accuracy']['easyccg']['accuracy'])
+
+    def test_oracle_counts_any_parser_correct(self):
+        # System answer is wrong on the second problem (candc wins with
+        # unknown), but easyccg got it right, so the oracle counts it.
+        results = [
+            result_with_parsers('yes', 'yes', 'ok', {
+                'candc': {'prediction': 'yes', 'status': 'ok'},
+                'easyccg': {'prediction': 'unknown', 'status': 'ok'},
+            }),
+            result_with_parsers('no', 'unknown', 'ok', {
+                'candc': {'prediction': 'unknown', 'status': 'ok'},
+                'easyccg': {'prediction': 'no', 'status': 'ok'},
+            }),
+            result_with_parsers('yes', 'unknown', 'ok', {
+                'candc': {'prediction': 'unknown', 'status': 'ok'},
+                'easyccg': {'prediction': 'unknown', 'status': 'ok'},
+            }),
+        ]
+        s = scoring.score(results, parsers=('candc', 'easyccg'))
+        self.assertEqual(2, s['oracle']['correct'])
+        self.assertAlmostEqual(2 / 3, s['oracle']['accuracy'])
+
+    def test_failed_parser_branch_is_an_error_not_a_correct_unknown(self):
+        results = [
+            result_with_parsers('unknown', None, 'timeout', {
+                'candc': {'prediction': None, 'status': 'timeout'},
+            }),
+        ]
+        s = scoring.score(results, parsers=('candc',))
+        self.assertEqual(0, s['parser_accuracy']['candc']['correct'])
+        self.assertEqual(1.0, s['parser_accuracy']['candc']['error_rate'])
+        self.assertEqual(0, s['oracle']['correct'])
+
+
 if __name__ == '__main__':
     unittest.main()

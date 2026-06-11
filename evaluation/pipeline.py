@@ -1,9 +1,11 @@
 """Per-problem evaluation pipeline inside an isolated run directory.
 
-Stage commands mirror en/rte_en_mp.sh (tokenizer.sed, C&C, EasyCCG,
-semparse.py, prove.py). The parser fallback implements the de-facto rule of
-its select_answer: use C&C, fall back to EasyCCG only when C&C yields
-unknown (or fails).
+Stage commands mirror en/rte_en_mp.sh and en/rte_en_mp_any.sh
+(tokenizer.sed, C&C, EasyCCG, depccg, semparse.py, prove.py). Every parser
+in the preference order runs on every problem and its outcome is recorded;
+the aggregated system answer follows the de-facto rule of the legacy
+select_answer: the first parser in preference order with a definite answer
+(yes/no) wins, otherwise unknown if any parser succeeded.
 
 Isolation: semparse.py and prove.py read several resources relative to the
 process working directory (coqlib.v / coqlib.vo / tactics_coq.txt /
@@ -58,6 +60,13 @@ class RunEnvironment(object):
 def read_parser_locations(parsers):
     locations = {}
     for parser in parsers:
+        if parser == 'depccg':
+            if shutil.which('depccg_en') is None:
+                raise SetupError(
+                    'depccg_en not found on PATH;'
+                    ' is this running inside the container?')
+            locations[parser] = ''
+            continue
         location_file = os.path.join(REPO_ROOT, 'en', '{0}_location.txt'.format(parser))
         if not os.path.isfile(location_file):
             raise SetupError(
@@ -129,23 +138,30 @@ def evaluate_problem(env, problem):
         result.update(status=error, stage='tokenize')
         return result
 
-    fallback = None
+    branches = {}
     for parser in env.parsers:
         branch = _run_parser_branch(env, parser, tok_path, artifact_dir, problem['id'])
+        branches[parser] = branch
         result['parsers'][parser] = {
             'prediction': branch['prediction'], 'status': branch['status']}
         result['times'][parser] = branch['times']
-        if branch['status'] == STATUS_OK and branch['prediction'] in ('yes', 'no'):
-            result.update(prediction=branch['prediction'], status=STATUS_OK,
-                          parser=parser)
-            return result
-        if fallback is None or (fallback['branch']['status'] != STATUS_OK
-                                and branch['status'] == STATUS_OK):
-            fallback = {'parser': parser, 'branch': branch}
 
-    branch = fallback['branch']
+    chosen = None
+    for parser in env.parsers:
+        branch = branches[parser]
+        if branch['status'] == STATUS_OK and branch['prediction'] in ('yes', 'no'):
+            chosen = parser
+            break
+    if chosen is None:
+        for parser in env.parsers:
+            if branches[parser]['status'] == STATUS_OK:
+                chosen = parser
+                break
+    if chosen is None:
+        chosen = env.parsers[0]
+    branch = branches[chosen]
     result.update(prediction=branch['prediction'], status=branch['status'],
-                  stage=branch.get('stage'), parser=fallback['parser'])
+                  stage=branch.get('stage'), parser=chosen)
     return result
 
 
@@ -236,6 +252,14 @@ def _parse_ccg(env, parser, tok_path, artifact_dir):
                  raw=raw_path, log=log_path,
                  conv=os.path.join(REPO_ROOT, 'en', 'easyccg2jigg.py'),
                  jigg=jigg_path)
+    elif parser == 'depccg':
+        candc_dir = env.parser_dirs.get('candc')
+        if candc_dir is None:
+            candc_dir = read_parser_locations(('candc',))['candc']
+        command = (
+            "cat '{tok}' | env CANDC='{candc}' depccg_en --input-format raw"
+            " --annotator candc --format jigg_xml > '{jigg}' 2> '{log}'"
+        ).format(tok=tok_path, candc=candc_dir, jigg=jigg_path, log=log_path)
     else:
         raise SetupError('unsupported parser: {0}'.format(parser))
 
