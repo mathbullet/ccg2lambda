@@ -61,7 +61,10 @@ def read_parser_locations(parsers):
         location_file = os.path.join(REPO_ROOT, 'en', '{0}_location.txt'.format(parser))
         if not os.path.isfile(location_file):
             raise SetupError(
-                '{0} not found; run infra/setup_worktree.sh first'.format(location_file))
+                '{0} not found; in a worktree run infra/setup_worktree.sh,'
+                ' in the main checkout create it to point at the parser'
+                ' directory inside the container (e.g. /opt/candc-1.00)'
+                .format(location_file))
         with open(location_file) as fin:
             parser_dir = fin.read().strip()
         binary = {'candc': os.path.join(parser_dir, 'bin', 'candc'),

@@ -123,12 +123,12 @@ def main(argv=None):
 
     git = git_state()
     run_dir = make_run_dir(args.output_root, git)
-    env = pipeline.RunEnvironment(
-        run_dir=run_dir, templates=args.templates, coqlib=args.coqlib,
-        tactics=args.tactics, abduction=args.abduction, timeout=args.timeout,
-        hard_timeout=args.hard_timeout,
-        parsers=[p.strip() for p in args.parsers.split(',') if p.strip()])
     try:
+        env = pipeline.RunEnvironment(
+            run_dir=run_dir, templates=args.templates, coqlib=args.coqlib,
+            tactics=args.tactics, abduction=args.abduction, timeout=args.timeout,
+            hard_timeout=args.hard_timeout,
+            parsers=[p.strip() for p in args.parsers.split(',') if p.strip()])
         pipeline.prepare_theory(env)
     except pipeline.SetupError as exc:
         print('ERROR: {0}'.format(exc), file=sys.stderr)
