@@ -12,6 +12,7 @@ RUN apt-get update && \
         libxml2-dev \
         libxslt1-dev \
         libhdf5-dev \
+        liblmdb-dev \
         openjdk-11-jdk \
         pkg-config \
         python3 \
@@ -44,6 +45,9 @@ RUN pip3 install --no-cache-dir "cython==0.29.30" "numpy==1.23.5" lxml pyyaml si
 RUN pip3 install --no-cache-dir "cached-path==1.1.2"
 RUN pip3 install --no-cache-dir "h5py==3.7.0"
 RUN pip3 install --no-cache-dir "depccg==2.0.3.2"
+# The lmdb wheel pulled in above ships a broken cffi build that tries to
+# recompile at import time; rebuild it from source against liblmdb-dev.
+RUN pip3 install --no-cache-dir --force-reinstall --no-deps --no-binary lmdb lmdb
 RUN pip3 uninstall -y importlib-metadata importlib_metadata || true \
     && pip3 install --no-cache-dir importlib-metadata==4.13.0
 RUN pip3 install --no-cache-dir "nltk==3.0.5"
