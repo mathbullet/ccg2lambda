@@ -45,9 +45,9 @@ RUN pip3 install --no-cache-dir "cython==0.29.30" "numpy==1.23.5" lxml pyyaml si
 RUN pip3 install --no-cache-dir "cached-path==1.1.2"
 RUN pip3 install --no-cache-dir "h5py==3.7.0"
 RUN pip3 install --no-cache-dir "depccg==2.0.3.2"
-# The lmdb wheel pulled in above ships a broken cffi build that tries to
-# recompile at import time; rebuild it from source against liblmdb-dev.
-RUN pip3 install --no-cache-dir --force-reinstall --no-deps --no-binary lmdb lmdb
+# The lmdb release pulled in above (2.x) ships a broken cffi build that tries
+# to recompile at import time on Python 3.8; pin the stable py-lmdb instead.
+RUN pip3 install --no-cache-dir --force-reinstall --no-deps "lmdb==1.4.1"
 RUN pip3 uninstall -y importlib-metadata importlib_metadata || true \
     && pip3 install --no-cache-dir importlib-metadata==4.13.0
 RUN pip3 install --no-cache-dir "nltk==3.0.5"
