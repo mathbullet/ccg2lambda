@@ -1,4 +1,12 @@
 services:
+  # Evaluation environment: parsers/Coq/deps live in the image, source code is
+  # mounted from the current checkout (worktree-friendly; no rebuild on edit).
+  eval:
+    image: ccg2lambda:latest
+    build: .
+    volumes:
+      - .:/app
+    working_dir: /app
   cli:
     build: .
     volumes:
