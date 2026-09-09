@@ -134,6 +134,49 @@ def semparse_sentence(sentence, semantic_index):
     return sentence
 
 class build_arbitrary_dynamic_libraryTestCase(unittest.TestCase):
+    def test_renamed_predicate_type_does_not_overwrite_constant_type(self):
+        doc_str = r"""
+        <document>
+          <sentences>
+            <sentence>
+              <tokens>
+                <token base="monkeypox" surf="Monkeypox"/>
+                <token base="get" surf="get"/>
+              </tokens>
+              <semantics>
+                <span sem="exists x.(_monkeypox(x) &amp; _get(x,_monkeypox))"/>
+                <span type="_monkeypox : Entity -> Prop"/>
+                <span type="_get : Entity -> Entity -> Prop"/>
+              </semantics>
+            </sentence>
+            <sentence>
+              <tokens>
+                <token base="john" surf="John"/>
+                <token base="get" surf="gets"/>
+                <token base="monkeypox" surf="Monkeypox"/>
+              </tokens>
+              <semantics>
+                <span sem="_get(_john,_monkeypox)"/>
+                <span type="_get : Entity -> Entity -> Prop"/>
+              </semantics>
+            </sentence>
+          </sentences>
+        </document>
+        """
+        for reverse in (False, True):
+            with self.subTest(reverse=reverse):
+                doc = etree.fromstring(doc_str)
+                sem_nodes = doc.xpath('//semantics')
+                if reverse:
+                    sem_nodes.reverse()
+                library, formulas = get_dynamic_library_from_doc(doc, sem_nodes)
+                self.assertIn('Parameter _monkeypox : Entity.', library.splitlines())
+                self.assertIn('Parameter _monkeypox_e2 : Entity -> Prop.',
+                              library.splitlines())
+                signature = convert_coq_signatures_to_nltk(library.splitlines())
+                for formula in formulas:
+                    formula.typecheck(signature)
+
     def test_type_arbitrary_raised(self):
         semantic_index = SemanticIndex(None)
         semantic_rules = [SemanticRule(r'N1', r'\P.P', {'coq_type' : 'Entity -> Prop'}),

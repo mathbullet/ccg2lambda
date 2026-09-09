@@ -242,7 +242,8 @@ def replace_function_names(expr, resolution_guide, active=None):
             'Expression not recognized: {0}, type: {1}'.format(expr, type(expr)))
     return expr
 
-def combine_signatures_or_rename_preds(exprs, preferred_sigs=None):
+def combine_signatures_or_rename_preds(exprs, preferred_sigs=None,
+                                      renamed_preds=None):
     """
     `signatures` is a list of dictionaries. Each dictionary has key-value
       pairs where key is a predicate name, and value is a type object.
@@ -252,6 +253,8 @@ def combine_signatures_or_rename_preds(exprs, preferred_sigs=None):
     predicate is renamed and each version is associated to a different type
     in the signature dictionary. The target predicate is also renamed in
     the logical expressions.
+    If provided, renamed_preds records (old_name, str(type)) -> new_name
+    entries from the renaming guide.
     """
     if preferred_sigs is None:
         preferred_sigs = [{}] * len(exprs)
@@ -273,6 +276,8 @@ def combine_signatures_or_rename_preds(exprs, preferred_sigs=None):
                 new_pred_name = make_new_pred_name(pred, pred_type)
                 if (pred, new_pred_name) not in resolution_guide[ex]:
                     resolution_guide[ex].append((pred, new_pred_name))
+                    if renamed_preds is not None:
+                        renamed_preds[(pred, str(pred_type))] = new_pred_name
 
     resolution_guide_local = deepcopy(resolution_guide)
     new_exprs = []
@@ -336,7 +341,13 @@ def get_dynamic_library_from_doc(doc, semantics_nodes):
 
     formulas = [sem.xpath('./span[1]/@sem')[0] for sem in semantics_nodes]
     formulas = parse_exprs_if_str(formulas)
-    nltk_sig_auto, formulas = combine_signatures_or_rename_preds(formulas, nltk_sigs_arbi)
+    renamed_preds = {}
+    nltk_sig_auto, formulas = combine_signatures_or_rename_preds(
+        formulas, nltk_sigs_arbi, renamed_preds=renamed_preds)
+    for pred, pred_type in list(nltk_sig_arbi.items()):
+        renamed = renamed_preds.get((pred, str(pred_type)))
+        if renamed in nltk_sig_auto and nltk_sig_auto[renamed] == pred_type:
+            nltk_sig_arbi[renamed] = nltk_sig_arbi.pop(pred)
     # coq_static_lib_path is useful to get reserved predicates.
     # ccg_xml_trees is useful to get full list of tokens
     # for which we need to specify types.
