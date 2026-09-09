@@ -8,6 +8,16 @@ en_*
 ja_*
 *.pyc
 coqlib.vo
+coqlib.vok
+coqlib.vos
 coqlib.glob
+.coqlib.aux
 results/
 data/
+parsed/
+plain/
+*.zip
+
+# OS metadata
+.DS_Store
+Thumbs.db

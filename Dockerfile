@@ -12,6 +12,8 @@ RUN apt-get update && \
         libxml2-dev \
         libxslt1-dev \
         libhdf5-dev \
+        liblmdb-dev \
+        openjdk-11-jdk \
         pkg-config \
         python3 \
         python3-pip \
@@ -43,6 +45,9 @@ RUN pip3 install --no-cache-dir "cython==0.29.30" "numpy==1.23.5" lxml pyyaml si
 RUN pip3 install --no-cache-dir "cached-path==1.1.2"
 RUN pip3 install --no-cache-dir "h5py==3.7.0"
 RUN pip3 install --no-cache-dir "depccg==2.0.3.2"
+# The lmdb release pulled in above (2.x) ships a broken cffi build that tries
+# to recompile at import time on Python 3.8; pin the stable py-lmdb instead.
+RUN pip3 install --no-cache-dir --force-reinstall --no-deps "lmdb==1.4.1"
 RUN pip3 uninstall -y importlib-metadata importlib_metadata || true \
     && pip3 install --no-cache-dir importlib-metadata==4.13.0
 RUN pip3 install --no-cache-dir "nltk==3.0.5"
@@ -60,9 +65,13 @@ RUN DEPCCG_PATH=$(python -c "import depccg; import os; print(os.path.dirname(dep
 WORKDIR /app
 COPY . /app
 
-# Configure parser locations
+# Install EasyCCG parser (sourced from third-party)
+RUN cp -r third-party/easyccg /opt/easyccg
+
+# Configure parser locations (sick.md style)
 RUN echo "/opt/candc-1.00" > en/candc_location.txt && \
-    printf "candc:/opt/candc-1.00\ndepccg:\n" > en/parser_location.txt
+    echo "/opt/easyccg" > en/easyccg_location.txt && \
+    printf "candc:/opt/candc-1.00\neasyccg:/opt/easyccg\ndepccg:\n" > en/parser_location.txt
 
 # Compile Coq library and generate Coq 8.11-compatible tactics
 RUN cp ./en/coqlib_sick.v ./coqlib.v && coqc coqlib.v && \

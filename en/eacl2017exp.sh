@@ -23,7 +23,7 @@
 # ./en/eacl2017exp.sh 10 train en/semantic_templates_en_event.yaml
 #
 
-sick=en/SICK.semeval.txt
+sick=data/raw/SICK.semeval.txt
 
 # How many processes in parallel you want to run.
 # The maximum number should be inferior to the number of cores in your machine.
