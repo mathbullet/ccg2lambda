@@ -146,6 +146,19 @@
   semantics: \L S. S
   child0_surf: ","
 
+- category: S\S
+  rule: lp
+  semantics: \L R. R
+
+- category: N\N
+  rule: lp
+  semantics: \L R. R
+
+- category: NP\NP
+  rule: lp
+  semantics: \L R. R
+  child1_category: NP\NP
+
 - category: NP
   rule: rp
   semantics: \L R. L
