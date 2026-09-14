@@ -16,11 +16,13 @@
 #  limitations under the License.
 
 import unittest
+from pathlib import Path
 
 from lxml import etree
 from nltk.sem.logic import Expression
 
-from ccg2lambda_tools import (assign_semantics_to_ccg, type_raise, build_ccg_tree)
+from ccg2lambda_tools import (assign_semantics_to_ccg, type_raise, build_ccg_tree,
+                             combine_children_exprs)
 from logic_parser import lexpr
 from semantic_index import (SemanticRule, SemanticIndex,
                             get_attributes_from_ccg_node_recursively, find_node_by_id)
@@ -59,6 +61,43 @@ class AssignSemanticsToCCGTestCase(unittest.TestCase):
                           SemanticRule(r'S\NP\NP\NP', r'\P z y x.P(x, y, z)'),
                           SemanticRule(r'default', r'\P x.x')]
         self.semantic_index.rules = semantic_rules
+
+    def test_comma_lp_preserves_right_expression_from_english_templates(self):
+        template_path = (Path(__file__).resolve().parent.parent / 'en' /
+                         'semantic_templates_en_emnlp2015.yaml')
+        semantic_index = SemanticIndex(str(template_path))
+        cases = [
+            (r'S[dcl=true]\S[dcl=true]', r'\S.(_glow(_lamp) & S)',
+             [r'_warm(_lamp)'], r'(_glow(_lamp) & _warm(_lamp))'),
+            (r'N\N', r'\F x.(_widget(x) & F(x))',
+             [r'\x._tool(x)', r'_item'],
+             r'(_widget(_item) & _tool(_item))'),
+            (r'NP\NP', r'\Q F1 F2.(Q(F1,F2) & F1(_alice) & F2(_alice))',
+             [r'\F1 F2.(F1(_bob) & F2(_bob))',
+              r'\x._person(x)', r'\x._smile(x)'],
+             r'(_person(_bob) & _smile(_bob) & _person(_alice) & _smile(_alice))'),
+        ]
+        for category, right_semantics, arguments, expected in cases:
+            with self.subTest(category=category):
+                tokens = etree.fromstring(r'''
+                  <tokens>
+                    <token id="t0" base="_COMMA" surf="_COMMA"/>
+                    <token id="t1" base="_right" surf="_right"/>
+                  </tokens>
+                ''')
+                tree = etree.Element('span', category=category, rule='lp',
+                                     child='left right')
+                etree.SubElement(tree, 'span', id='left', category=',',
+                                 terminal='t0', sem='_COMMA')
+                etree.SubElement(tree, 'span', id='right', category=category,
+                                 terminal='t1', sem=right_semantics)
+                combine_children_exprs(tree, tokens, semantic_index)
+                semantics = lexpr(tree.get('sem'))
+                self.assertEqual(lexpr(right_semantics), semantics)
+                for argument in arguments:
+                    semantics = semantics(lexpr(argument)).simplify()
+                self.assertEqual(lexpr(expected), semantics)
+                semantics.typecheck()
 
     def test_token_to_const_latin(self):
         sentence_str = r"""
