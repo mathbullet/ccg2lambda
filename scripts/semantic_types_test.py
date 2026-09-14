@@ -140,24 +140,24 @@ class build_arbitrary_dynamic_libraryTestCase(unittest.TestCase):
           <sentences>
             <sentence>
               <tokens>
-                <token base="monkeypox" surf="Monkeypox"/>
-                <token base="get" surf="get"/>
+                <token base="widget" surf="Widget"/>
+                <token base="inspect" surf="inspect"/>
               </tokens>
               <semantics>
-                <span sem="exists x.(_monkeypox(x) &amp; _get(x,_monkeypox))"/>
-                <span type="_monkeypox : Entity -> Prop"/>
-                <span type="_get : Entity -> Entity -> Prop"/>
+                <span sem="exists x.(_widget(x) &amp; _inspect(x,_widget))"/>
+                <span type="_widget : Entity -> Prop"/>
+                <span type="_inspect : Entity -> Entity -> Prop"/>
               </semantics>
             </sentence>
             <sentence>
               <tokens>
-                <token base="john" surf="John"/>
-                <token base="get" surf="gets"/>
-                <token base="monkeypox" surf="Monkeypox"/>
+                <token base="alice" surf="Alice"/>
+                <token base="inspect" surf="inspects"/>
+                <token base="widget" surf="Widget"/>
               </tokens>
               <semantics>
-                <span sem="_get(_john,_monkeypox)"/>
-                <span type="_get : Entity -> Entity -> Prop"/>
+                <span sem="_inspect(_alice,_widget)"/>
+                <span type="_inspect : Entity -> Entity -> Prop"/>
               </semantics>
             </sentence>
           </sentences>
@@ -170,8 +170,8 @@ class build_arbitrary_dynamic_libraryTestCase(unittest.TestCase):
                 if reverse:
                     sem_nodes.reverse()
                 library, formulas = get_dynamic_library_from_doc(doc, sem_nodes)
-                self.assertIn('Parameter _monkeypox : Entity.', library.splitlines())
-                self.assertIn('Parameter _monkeypox_e2 : Entity -> Prop.',
+                self.assertIn('Parameter _widget : Entity.', library.splitlines())
+                self.assertIn('Parameter _widget_e2 : Entity -> Prop.',
                               library.splitlines())
                 signature = convert_coq_signatures_to_nltk(library.splitlines())
                 for formula in formulas:
